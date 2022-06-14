@@ -1,0 +1,18 @@
+{
+  "hosts": [
+    {
+      "local_address": ":9999",
+      "remote_address": "echo.jpillora.com:80"
+    }
+  ],
+  "settings": {
+    "verbose": false,
+    "very_verbose": false,
+    "output_hex": false,
+    "output_ansi_colors": false,
+    "disable_nagles_algorithm": false,
+    "unwrap_tls": false,
+    "match_regex": "",
+    "replace_regex": ""
+  }
+}

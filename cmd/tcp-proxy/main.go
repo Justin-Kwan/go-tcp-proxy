@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -17,34 +16,38 @@ var (
 	connid  = uint64(0)
 	logger  proxy.ColorLogger
 
-	localAddr   = flag.String("l", ":9999", "local address")
-	remoteAddr  = flag.String("r", "localhost:80", "remote address")
-	verbose     = flag.Bool("v", false, "display server actions")
-	veryverbose = flag.Bool("vv", false, "display server actions and all tcp data")
-	nagles      = flag.Bool("n", false, "disable nagles algorithm")
-	hex         = flag.Bool("h", false, "output hex")
-	colors      = flag.Bool("c", false, "output ansi colors")
-	unwrapTLS   = flag.Bool("unwrap-tls", false, "remote connection with TLS exposed unencrypted locally")
-	match       = flag.String("match", "", "match regex (in the form 'regex')")
-	replace     = flag.String("replace", "", "replace regex (in the form 'regex~replacer')")
+	//localAddr   = flag.String("l", ":9999", "local address")
+	//remoteAddr  = flag.String("r", "localhost:80", "remote address")
+	//verbose     = flag.Bool("v", false, "display server actions")
+	//veryverbose = flag.Bool("vv", false, "display server actions and all tcp data")
+	//nagles      = flag.Bool("n", false, "disable nagles algorithm")
+	//hex         = flag.Bool("h", false, "output hex")
+	//colors      = flag.Bool("c", false, "output ansi colors")
+	//unwrapTLS   = flag.Bool("unwrap-tls", false, "remote connection with TLS exposed unencrypted locally")
+	//match       = flag.String("match", "", "match regex (in the form 'regex')")
+	//replace     = flag.String("replace", "", "replace regex (in the form 'regex~replacer')")
 )
 
 func main() {
-	flag.Parse()
+	//flag.Parse()
+
+	config := proxy.ReadConfig()
+	settings := config.Settings
+	proxyLink := config.ProxyLinks[0]
 
 	logger := proxy.ColorLogger{
-		Verbose: *verbose,
-		Color:   *colors,
+		Verbose: settings.Verbose,
+		Color:   settings.OutputAnsiColors,
 	}
 
-	logger.Info("go-tcp-proxy (%s) proxing from %v to %v ", version, *localAddr, *remoteAddr)
+	logger.Info("go-tcp-proxy (%s) proxing from %v to %v ", version, proxyLink.LocalAddr, proxyLink.RemoteAddr)
 
-	laddr, err := net.ResolveTCPAddr("tcp", *localAddr)
+	laddr, err := net.ResolveTCPAddr("tcp", proxyLink.LocalAddr)
 	if err != nil {
 		logger.Warn("Failed to resolve local address: %s", err)
 		os.Exit(1)
 	}
-	raddr, err := net.ResolveTCPAddr("tcp", *remoteAddr)
+	raddr, err := net.ResolveTCPAddr("tcp", proxyLink.RemoteAddr)
 	if err != nil {
 		logger.Warn("Failed to resolve remote address: %s", err)
 		os.Exit(1)
@@ -55,11 +58,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	matcher := createMatcher(*match)
-	replacer := createReplacer(*replace)
+	matcher := createMatcher(settings.MatchRegex)
+	replacer := createReplacer(settings.ReplaceRegex)
 
-	if *veryverbose {
-		*verbose = true
+	if settings.VeryVerbose {
+		settings.Verbose = true
 	}
 
 	for {
@@ -71,9 +74,9 @@ func main() {
 		connid++
 
 		var p *proxy.Proxy
-		if *unwrapTLS {
+		if settings.UnwrapTls {
 			logger.Info("Unwrapping TLS")
-			p = proxy.NewTLSUnwrapped(conn, laddr, raddr, *remoteAddr)
+			p = proxy.NewTLSUnwrapped(conn, laddr, raddr, proxyLink.RemoteAddr)
 		} else {
 			p = proxy.New(conn, laddr, raddr)
 		}
@@ -81,13 +84,13 @@ func main() {
 		p.Matcher = matcher
 		p.Replacer = replacer
 
-		p.Nagles = *nagles
-		p.OutputHex = *hex
+		p.Nagles = settings.DisableNaglesAlgorithm
+		p.OutputHex = settings.OutputHex
 		p.Log = proxy.ColorLogger{
-			Verbose:     *verbose,
-			VeryVerbose: *veryverbose,
+			Verbose:     settings.Verbose,
+			VeryVerbose: settings.VeryVerbose,
 			Prefix:      fmt.Sprintf("Connection #%03d ", connid),
-			Color:       *colors,
+			Color:       settings.OutputAnsiColors,
 		}
 
 		go p.Start()
